@@ -4,7 +4,7 @@ A script for installing deb packages without root privileges.
 
 Supports automatically fetching and installing packages and their dependencies.
 
-Only supports fetching packages the deb repositories configured on the system.
+Only supports fetching packages from the deb repositories configured on the system.
 
 ## Setup
 
