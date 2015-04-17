@@ -15,6 +15,6 @@ Only supports fetching packages from the deb repositories configured on the syst
 ## Usage
 
 * To install a package, just run `./install.sh $package`. The package and any dependencies will be downloaded and extracted into the current working directory.
-* To remove installed packages, run `./install.sh --clean`. WARNING: This will delete all folders in the current working directory, so make sure don't run it in the wrong directory (there is an interactive check to make sure this doesn't happen accidentally).
+* To remove installed packages, run `./install.sh --clean`. WARNING: This will delete all folders in the current working directory, so make sure you don't run it in the wrong directory (there is an interactive check to make sure this doesn't happen accidentally).
 * To re-extract downloaded packages, run `./install.sh` (without any arguments)
 * To remove downloaded packages, run `./install.sh --cleandeb` (or just `rm *.deb`)
