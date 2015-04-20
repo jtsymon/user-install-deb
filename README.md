@@ -9,8 +9,8 @@ Only supports fetching packages from the deb repositories configured on the syst
 ## Setup
 
 1. Clone this repository to somewhere in your home folder: `git clone https://github.com/jtsymon/user-install-deb $PKGHOME`
-2. Set up your PATH: `echo 'export PATH="$PKGHOME/usr/bin:$PATH" >> ~/.bashrc'`
-3. Set up your LD_LIBRARY_PATH (this is for library dependencies which may be installed): `echo 'export LD_LIBRARY_PATH="$PKGHOME/usr/lib/:$PKGHOME/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH' >> ~/.bashrc`
+2. Set up your PATH: `echo 'export PATH="$PKGHOME/usr/bin:$PATH"' >> ~/.bashrc`
+3. Set up your LD_LIBRARY_PATH (this is for library dependencies which may be installed): `echo 'export LD_LIBRARY_PATH="$PKGHOME/usr/lib/:$PKGHOME/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"' >> ~/.bashrc`
 
 ## Usage
 
