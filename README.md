@@ -2,19 +2,28 @@
 
 A script for installing deb packages without root privileges.
 
-Supports automatically fetching and installing packages and their dependencies.
-
-Only supports fetching packages from the deb repositories configured on the system.
-
-## Setup
-
-1. Clone this repository to somewhere in your home folder: `git clone https://github.com/jtsymon/user-install-deb $PKGHOME`
-2. Set up your PATH: `echo 'export PATH="$PKGHOME/usr/bin:$PATH"' >> ~/.bashrc`
-3. Set up your LD_LIBRARY_PATH (this is for library dependencies which may be installed): `echo 'export LD_LIBRARY_PATH="$PKGHOME/usr/lib/:$PKGHOME/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"' >> ~/.bashrc`
-
 ## Usage
 
-* To install a package, just run `./install.sh $package`. The package and any dependencies will be downloaded and extracted into the current working directory.
-* To remove installed packages, run `./install.sh --clean`. WARNING: This will delete all folders in the current working directory, so make sure you don't run it in the wrong directory (there is an interactive check to make sure this doesn't happen accidentally).
-* To re-extract downloaded packages, run `./install.sh` (without any arguments)
-* To remove downloaded packages, run `./install.sh --cleandeb` (or just `rm *.deb`)
+* Run `./install`
+* Wait for the automatic bootstrap (only on the first run)
+* You will be dropped into a shell with fake root permissions
+* From here you can run `apt-get install ...`
+* Run `./install env` for environment variable declarations to add to your .profile
+
+## Warning
+
+You WILL get errors when installing packages using this script.
+
+Generally they are simple enough to fix (e.g. missing files with clear error messages).
+
+Feel free to make an issue if you have any problems (or a pull request if you fix anything).
+
+## How it works
+
+The script uses a fakechroot with fakeroot so it can run `apt-get`.
+
+Since we don't actually get root privileges, and we need a writable `dpkg` database, we have to maintain our own separate `dpkg` database.
+
+The separate `dpkg` database needs to know about the installed packages on the main system so it can handle dependencies properly.
+
+`dpkg` doesn't provide any nice way to mark packages as installed, so we have to create empty placeholder packages and install those. This is why the first run takes so long (it is creating and installing empty packages for every package on your main system).

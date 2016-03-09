@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+
+ROOT=$HOME/.pkg
+DPKG=$ROOT/var/lib/dpkg
+APT=$ROOT/etc/apt
+
+mkpath() {
+    echo -n $1
+    shift
+    for path in $@; do
+        echo -n :$path
+    done
+    echo
+}
+
+link() {
+    for file in $@; do
+        [[ -e $ROOT$file ]] || ln -s $file $ROOT$file
+    done
+}
+
+escape_path() {
+    sed 's/\//\\\//g' <<<$1
+}
+
+requires=( "fakeroot" "libfakeroot" "fakechroot" "libfakechroot" )
+
+bootstrap() {
+    mkdir -p \
+        $ROOT/{bin,lib} \
+        $ROOT/usr/{share/doc,bin,lib} \
+        $ROOT/var/log \
+        $ROOT/var/cache/apt \
+        $ROOT/etc/alternatives \
+        $DPKG/{updates,info,alternatives} \
+        $APT/{apt.conf.d,preferences.d} \
+        $ROOT/.bootstrap \
+        $ROOT/.fakepkg
+
+    touch \
+        $DPKG/{diversions,statoverride,status,available}
+    link /etc/apt/sources.list /etc/apt/sources.list.d /var/lib/apt/* /usr/lib/apt /etc/passwd /bin/{ba,}sh /usr/bin/dpkg
+    [[ -d $ROOT/.root ]] || ln -s / $ROOT/.root
+
+    pushd $ROOT/.bootstrap
+    apt-get --print-uris --yes --reinstall install ${requires[@]} |\
+        grep ^\' | cut -d\' -f2 |\
+        wget --no-clobber --quiet --input-file - >&2
+    for pkg in *.deb; do
+        echo "Extracting $pkg"
+        files=$(ar t $pkg)
+        case $files in
+            *data.tar.gz*)
+                ar p $pkg data.tar.gz | tar xz
+                ;;
+            *data.tar.xz*)
+                ar p $pkg data.tar.xz | tar xJ
+                ;;
+            *)
+                echo "Failed at $pkg" >&2
+                exit 1
+                ;;
+        esac
+    done
+    ln -s fakeroot-sysv usr/bin/fakeroot
+    popd
+}
+
+run() {
+    export FAKECHROOT_EXCLUDE_PATH=/tmp:/proc:/dev:/sys:/var/run:/home
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ROOT/.bootstrap/usr/lib/x86_64-linux-gnu/fakechroot
+    bootstrap_path=$(mkpath $ROOT/.bootstrap/{,usr/}bin $PATH)
+    fakeroot=$(PATH=$bootstrap_path which fakeroot)
+    fakechroot=$(PATH=$bootstrap_path which fakechroot)
+    PATH=$(mkpath /{,.root/}{{,usr/}bin,{,usr/{,local/}}sbin}) \
+        fakeroot $fakechroot chroot $ROOT /.root/bin/bash -
+}
+
+mark_installed() {
+    pushd $ROOT/.fakepkg
+    for pkg in $(dpkg --get-selections | grep install | grep -o '^[^	]*'); do
+        if [[ ! -d $pkg ]]; then
+            mkdir -p $pkg/DEBIAN
+            (
+            dpkg -s $pkg | grep '^\(Package\|Version\|Section\|Replaces\|Provides\|Architecture\|Description\|Maintainer\):'
+            )> $pkg/DEBIAN/control
+        fi
+        [[ -f $pkg.deb ]] || dpkg-deb --build $pkg
+    done
+    popd
+    run <<EOF
+pushd /.fakepkg
+dpkg -i *.deb
+popd
+EOF
+}
+
+case $1 in
+    env)
+        echo export LD_LIBRARY_PATH=$(mkpath $ROOT/{,usr/}lib $ROOT/usr/lib/x86_64-linux-gnu \$LD_LIBRARY_PATH)
+        echo export LIBRARY_PATH=\$LD_LIBRARY_PATH
+        echo export NODE_PATH=$(mkpath $ROOT/usr/lib/nodejs \$NODE_PATH)
+        echo export PERL5LIB=$(mkpath $ROOT/usr/lib/perl5 $ROOT/usr/lib/urxvt \$PERL5LIB)
+        echo export CPATH=$(mkpath $ROOT/usr/include \$CPATH)
+        echo export PATH=$(mkpath $ROOT/usr/bin $ROOT/bin \$PATH)
+        ;;
+    *)
+        if [[ ! -d $ROOT ]]; then
+            bootstrap
+            # TODO: Allow re-running this to update installed packages
+            # Will need to support uninstalling unknown packages, and updating versions
+            mark_installed 
+        fi
+        echo "You can now install any packages you want with \`apt-get'"
+        echo "Press ^D when finished"
+        run
+        ;;
+esac
