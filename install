@@ -91,6 +91,7 @@ mark_installed() {
     run <<EOF
 pushd /.fakepkg
 dpkg -i *.deb
+apt-mark hold $(basename -s '.deb' *.deb)
 popd
 EOF
 }
