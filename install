@@ -30,6 +30,7 @@ bootstrap() {
         $ROOT/{bin,lib} \
         $ROOT/usr/{share/doc,bin,lib} \
         $ROOT/var/log \
+        $ROOT/lib/apt \
         $ROOT/var/cache/apt \
         $ROOT/etc/alternatives \
         $DPKG/{updates,info,alternatives} \
@@ -39,7 +40,7 @@ bootstrap() {
 
     touch \
         $DPKG/{diversions,statoverride,status,available}
-    link /etc/apt/sources.list /etc/apt/sources.list.d /var/lib/apt/* /usr/lib/apt /etc/passwd /bin/{ba,}sh /usr/bin/dpkg
+    link /etc/apt/sources.list /etc/apt/sources.list.d /var/lib/apt/* /usr/lib/apt /usr/share/debconf /etc/passwd /bin/{ba,}sh /usr/bin/dpkg
     [[ -d $ROOT/.root ]] || ln -s / $ROOT/.root
 
     pushd $ROOT/.bootstrap
@@ -68,11 +69,16 @@ bootstrap() {
 
 run() {
     export FAKECHROOT_EXCLUDE_PATH=/tmp:/proc:/dev:/sys:/var/run:/home
+    export FAKECHROOT_CMD_SUBST=$(mkpath \
+        "/usr/bin/env=/.bootstrap/usr/bin/env.fakechroot" \
+        "/usr/bin/ldd=/.bootstrap/usr/bin/ldd.fakechroot" \
+    )
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ROOT/.bootstrap/usr/lib/x86_64-linux-gnu/fakechroot
     bootstrap_path=$(mkpath $ROOT/.bootstrap/{,usr/}bin $PATH)
     fakeroot=$(PATH=$bootstrap_path which fakeroot)
     fakechroot=$(PATH=$bootstrap_path which fakechroot)
     PATH=$(mkpath /{,.root/}{{,usr/}bin,{,usr/{,local/}}sbin}) \
+    PERL5LIB=$(mkpath /,.root/}{etc/perl,usr/local/{lib,share}/perl/5.18.2,usr/{lib,share}/perl5) \
         fakeroot $fakechroot chroot $ROOT /.root/bin/bash -
 }
 
@@ -101,8 +107,10 @@ case $1 in
         echo export LD_LIBRARY_PATH=$(mkpath $ROOT/{,usr/}lib $ROOT/usr/lib/x86_64-linux-gnu \$LD_LIBRARY_PATH)
         echo export LIBRARY_PATH=\$LD_LIBRARY_PATH
         echo export NODE_PATH=$(mkpath $ROOT/usr/lib/nodejs \$NODE_PATH)
+        echo export PYTHONPATH=$(mkpath $ROOT/usr/lib/python2.7 \$PYTHONPATH)
         echo export PERL5LIB=$(mkpath $ROOT/usr/lib/perl5 $ROOT/usr/lib/urxvt \$PERL5LIB)
         echo export CPATH=$(mkpath $ROOT/usr/include \$CPATH)
+        echo export PKG_CONFIG_PATH=$(mkpath $ROOT/usr/lib/pkgconfig $ROOT/usr/lib/x86_64-linux-gnu/pkgconfig \$PKG_CONFIG_PATH)
         echo export PATH=$(mkpath $ROOT/usr/bin $ROOT/bin \$PATH)
         ;;
     *)
