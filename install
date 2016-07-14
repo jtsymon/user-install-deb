@@ -30,7 +30,7 @@ bootstrap() {
         $ROOT/{bin,lib} \
         $ROOT/usr/{share/doc,bin,lib} \
         $ROOT/var/log \
-        $ROOT/lib/apt \
+        $ROOT/var/lib/apt \
         $ROOT/var/cache/apt \
         $ROOT/etc/alternatives \
         $DPKG/{updates,info,alternatives} \
