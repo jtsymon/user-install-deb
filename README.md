@@ -6,24 +6,16 @@ A script for installing deb packages without root privileges.
 
 * Run `./install`
 * Wait for the automatic bootstrap (only on the first run)
-* You will be dropped into a shell with fake root permissions
-* From here you can run `apt-get install ...`
-* Run `./install env` for environment variable declarations to add to your .profile
-
-## Warning
-
-You WILL get errors when installing packages using this script.
-
-Generally they are simple enough to fix (e.g. missing files with clear error messages).
-
-Feel free to make an issue if you have any problems (or a pull request if you fix anything).
+* You will be dropped into a shell in which you can modify any file on the root filesystem
+* To install packages, first run fakeroot, then you can use `apt-get install <package>`
+* To use your installed packages, you need to be running inside the shell (the easy way to do this is to start X from inside the shell)
 
 ## How it works
 
-The script uses a fakechroot with fakeroot so it can run `apt-get`.
+`unionfs` is used to create a filesystem which is a union of the real root filesystem, and a writable folder which we own.
+We can read files from the real root filesystem, but when we modify them they are saved to the writable folder.
 
-Since we don't actually get root privileges, and we need a writable `dpkg` database, we have to maintain our own separate `dpkg` database.
+`fakechroot` is used to treat this union filesystem as the root filesystem.
+This also allows us to pass-through certain files/folders, which is used for folders which should be excluded from the unionfs (`$HOME`, `/tmp`, `/dev`, ...)
 
-The separate `dpkg` database needs to know about the installed packages on the main system so it can handle dependencies properly.
-
-`dpkg` doesn't provide any nice way to mark packages as installed, so we have to create empty placeholder packages and install those. This is why the first run takes so long (it is creating and installing empty packages for every package on your main system).
+`fakeroot` is included to appear as the root user for running programs that check the user-id (e.g. `dpkg` when installing packages).

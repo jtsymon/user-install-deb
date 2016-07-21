@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+
+set -e
+
+BASE=$HOME/user-install-deb
+ROOT=$BASE/root
+FILES=$BASE/files
+BOOTSTRAP=$BASE/bootstrap
+
+mkpath() {
+    echo -n $1
+    shift
+    for path in $@; do
+        echo -n :$path
+    done
+    echo
+}
+
+requires=( "fakeroot" "libfakeroot" "fakechroot" "libfakechroot" "libfuse2" "libfuse-dev" )
+bootstrap_path=$(mkpath $BOOTSTRAP/{,usr/}bin $PATH)
+
+bootstrap() {
+    mkdir -p $ROOT $FILES $BOOTSTRAP
+    pushd $BOOTSTRAP
+    apt-get --print-uris --yes --reinstall install ${requires[@]} |\
+        grep ^\' | cut -d\' -f2 |\
+        wget --no-clobber --quiet --input-file - >&2
+    for pkg in *.deb; do
+        echo "Extracting $pkg"
+        files=$(ar t $pkg)
+        case $files in
+            *data.tar.gz*)
+                ar p $pkg data.tar.gz | tar xz
+                ;;
+            *data.tar.xz*)
+                ar p $pkg data.tar.xz | tar xJ
+                ;;
+            *)
+                echo "Failed at $pkg" >&2
+                exit 1
+                ;;
+        esac
+    done
+
+    patch -p1 <<EOF
+diff --git a/usr/lib/x86_64-linux-gnu/pkgconfig/fuse.pc b/usr/lib/x86_64-linux-gnu/pkgconfig/fuse.pc
+index 805ad60..6403202 100644
+--- a/usr/lib/x86_64-linux-gnu/pkgconfig/fuse.pc
++++ b/usr/lib/x86_64-linux-gnu/pkgconfig/fuse.pc
+@@ -1,4 +1,4 @@
+-prefix=/usr
++prefix=$BOOTSTRAP/usr
+ exec_prefix=\${prefix}
+ libdir=/usr/lib/x86_64-linux-gnu
+ includedir=\${prefix}/include
+EOF
+
+    # get latest unionfs-fuse (ubuntu package is outdated)
+    git clone https://github.com/rpodgorny/unionfs-fuse.git ufs
+    pushd ufs
+    patch -p1 <<'EOF'
+diff --git a/src/Makefile b/src/Makefile
+index 099f15e..8906b5e 100644
+--- a/src/Makefile
++++ b/src/Makefile
+@@ -10,7 +10,7 @@ CPPFLAGS += -DLIBC_XATTR # glibc nowadays includes xattr
+ 
+ LDFLAGS +=
+ 
+-LIB = $(shell pkg-config --libs fuse) -lpthread
++LIB = -l:libfuse.so.2 -lpthread
+ 
+ HASHTABLE_OBJ = hashtable.o hashtable_itr.o
+ UNIONFS_OBJ = unionfs.o opts.o debug.o findbranch.o readdir.o \
+EOF
+    make \
+        PKG_CONFIG_PATH=$BOOTSTRAP/usr/lib/x86_64-linux-gnu/pkgconfig \
+        DESTDIR=.. \
+        PREFIX=/usr \
+        install
+    popd
+    popd
+
+    fakeroot=$(PATH=$bootstrap_path which fakeroot)
+    enter <<EOF
+files=(
+  /var/lib/dpkg/lock
+  /var/cache/apt/archives/lock
+  /var/lib/dpkg/triggers/Lock
+  /var/log/apt/term.log
+  /etc/ld.so.cache
+)
+for file in "\${files[@]}"; do
+    rm \$file
+    touch \$file
+done
+echo "staff:x:9999" >> /etc/group
+$fakeroot apt-get install fakeroot
+EOF
+}
+
+enter() {
+    export FAKECHROOT_EXCLUDE_PATH=/tmp:/proc:/dev:/sys:/var/run:/home
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$BOOTSTRAP/usr/lib/x86_64-linux-gnu/fakechroot
+    fakechroot=$(PATH=$bootstrap_path which fakechroot)
+
+    PATH=$bootstrap_path unionfs \
+        -o cow -o relaxed_permissions -o use_ino,suid,dev,nonempty \
+        $FILES=rw:/=ro $ROOT
+    $fakechroot chroot $ROOT /bin/bash - || true
+    pkill unionfs
+}
+
+if [[ ! -d $ROOT ]]; then
+    bootstrap
+    # give unionfs a chance to exit
+    sleep 1
+fi
+# load group and user information from NFS
+groups >/dev/null
+users >/dev/null
+enter
