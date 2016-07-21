@@ -78,7 +78,7 @@ run() {
     fakeroot=$(PATH=$bootstrap_path which fakeroot)
     fakechroot=$(PATH=$bootstrap_path which fakechroot)
     PATH=$(mkpath /{,.root/}{{,usr/}bin,{,usr/{,local/}}sbin}) \
-    PERL5LIB=$(mkpath /,.root/}{etc/perl,usr/local/{lib,share}/perl/5.18.2,usr/{lib,share}/perl5) \
+    PERL5LIB=$(mkpath $(perl -e 'foreach (@INC) { /^\// && ! /^\/home/ && print $_, " ", "/.root", $_, " "; }')) \
         fakeroot $fakechroot chroot $ROOT /.root/bin/bash -
 }
 
