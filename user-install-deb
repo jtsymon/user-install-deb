@@ -97,6 +97,9 @@ done
 echo "staff:x:9999" >> /etc/group
 $fakeroot apt-get install fakeroot
 EOF
+for group in $(groups); do
+    getent group $group | sed 's/:[^:]*$/:/'
+done >> $ROOT/etc/group
 }
 
 enter() {
