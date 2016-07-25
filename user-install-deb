@@ -103,16 +103,29 @@ done >> $ROOT/etc/group
 getent passwd $USER >> $ROOT/etc/passwd
 }
 
+start() {
+    if ! grep /home/jts21/user-install-deb/root  /proc/mounts &>/dev/null; then
+        PATH=$bootstrap_path unionfs \
+            -o cow -o relaxed_permissions -o use_ino,suid,dev,nonempty \
+            $FILES=rw:/=ro $ROOT
+    fi
+}
+
+stop() {
+    fusermount -u $ROOT
+}
+
 enter() {
-    export FAKECHROOT_EXCLUDE_PATH=/tmp:/proc:/dev:/sys:/var/run:/home
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$BOOTSTRAP/usr/lib/x86_64-linux-gnu/fakechroot
     fakechroot=$(PATH=$bootstrap_path which fakechroot)
 
-    PATH=$bootstrap_path unionfs \
-        -o cow -o relaxed_permissions -o use_ino,suid,dev,nonempty \
-        $FILES=rw:/=ro $ROOT
-    $fakechroot chroot $ROOT /bin/bash - || true
-    fusermount -u $ROOT
+    FAKECHROOT_EXCLUDE_PATH=/tmp:/proc:/dev:/sys:/var/run:/home \
+        FAKECHROOT_CMD_SUBST=$(mkpath \
+            /usr/bin/ldd=$BOOTSTRAP/usr/bin/ldd.fakechroot \
+            /usr/bin/env=/usr/bin/env.fakechroot \
+            /usr/bin/ischroot=/bin/true \
+            /usr/bin/mkfifo=/bin/true) \
+        LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$BOOTSTRAP/usr/lib/x86_64-linux-gnu/fakechroot \
+        $fakechroot chroot $ROOT /bin/bash --rcfile <(echo ". ~/.bashrc ; cd $(pwd)")
 }
 
 if [[ ! -d $ROOT ]]; then
@@ -120,7 +133,29 @@ if [[ ! -d $ROOT ]]; then
     # give unionfs a chance to exit
     sleep 1
 fi
-# load group and user information from NFS
-groups >/dev/null
-users >/dev/null
-enter
+
+if [[ $# -eq 0 ]] ; then
+    enter
+else
+    case $1 in
+        --start)
+            start
+            ;;
+        --stop)
+            stop
+            ;;
+        --env)
+            shift
+            LD_LIBRARY_PATH=$(mkpath $ROOT/{,usr/}lib $ROOT/usr/lib/x86_64-linux-gnu $LD_LIBRARY_PATH) \
+                PATH=$(mkpath $ROOT/usr/bin $ROOT/bin $PATH) \
+                $@
+            ;;
+        *)
+            enter <<EOF
+. ~/.bashrc
+cd $(pwd)
+$@
+EOF
+            ;;
+    esac
+fi
