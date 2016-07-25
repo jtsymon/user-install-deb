@@ -100,6 +100,7 @@ EOF
 for group in $(groups); do
     getent group $group | sed 's/:[^:]*$/:/'
 done >> $ROOT/etc/group
+getent passwd $USER >> $ROOT/etc/passwd
 }
 
 enter() {
