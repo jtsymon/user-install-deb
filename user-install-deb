@@ -108,7 +108,7 @@ enter() {
         -o cow -o relaxed_permissions -o use_ino,suid,dev,nonempty \
         $FILES=rw:/=ro $ROOT
     $fakechroot chroot $ROOT /bin/bash - || true
-    pkill unionfs
+    fusermount -u $ROOT
 }
 
 if [[ ! -d $ROOT ]]; then
