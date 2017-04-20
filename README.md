@@ -2,13 +2,15 @@
 
 A script for installing deb packages without root privileges.
 
+I use this to install useful/up-to-date software on university lab machines without having to compile everything from scratch.
+
 ## Usage
 
-* Run `./install`
+* Run `./user-install-deb`
 * Wait for the automatic bootstrap (only on the first run)
 * You will be dropped into a shell in which you can modify any file on the root filesystem
-* To install packages, first run fakeroot, then you can use `apt-get install <package>`
-* To use your installed packages, you need to be running inside the shell (the easy way to do this is to start X from inside the shell)
+* To install packages, first run fakeroot, then you can use `apt install <package>
+* To use your installed packages, you need to be running inside the shell
 
 ## How it works
 
