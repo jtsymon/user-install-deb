@@ -9,7 +9,7 @@ I use this to install useful/up-to-date software on university lab machines with
 * Run `./user-install-deb`
 * Wait for the automatic bootstrap (only on the first run)
 * You will be dropped into a shell in which you can modify any file on the root filesystem
-* To install packages, first run fakeroot, then you can use `apt install <package>
+* To install packages, first run fakeroot, then you can use `apt install <package>`
 * To use your installed packages, you need to be running inside the shell
 
 ## How it works
