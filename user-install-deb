@@ -104,9 +104,10 @@ getent passwd $USER >> $ROOT/etc/passwd
 }
 
 start() {
-    if ! grep /home/jts21/user-install-deb/root  /proc/mounts &>/dev/null; then
+    if ! grep $ROOT  /proc/mounts &>/dev/null; then
         PATH=$bootstrap_path unionfs \
-            -o cow -o relaxed_permissions -o use_ino,suid,dev,nonempty \
+            -o cow -o relaxed_permissions \
+            -o use_ino,suid,dev,nonempty \
             $FILES=rw:/=ro $ROOT
     fi
 }
@@ -116,12 +117,13 @@ stop() {
 }
 
 enter() {
+    start
     fakechroot=$(PATH=$bootstrap_path which fakechroot)
 
     FAKECHROOT_EXCLUDE_PATH=/tmp:/proc:/dev:/sys:/var/run:/home \
         FAKECHROOT_CMD_SUBST=$(mkpath \
             /usr/bin/ldd=$BOOTSTRAP/usr/bin/ldd.fakechroot \
-            /usr/bin/env=/usr/bin/env.fakechroot \
+            /usr/bin/env=$BOOTSTRAP/usr/bin/env.fakechroot \
             /usr/bin/ischroot=/bin/true \
             /usr/bin/mkfifo=/bin/true) \
         LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$BOOTSTRAP/usr/lib/x86_64-linux-gnu/fakechroot \
@@ -147,7 +149,7 @@ else
         --env)
             shift
             LD_LIBRARY_PATH=$(mkpath $ROOT/{,usr/}lib $ROOT/usr/lib/x86_64-linux-gnu $LD_LIBRARY_PATH) \
-                PATH=$(mkpath $ROOT/usr/bin $ROOT/bin $PATH) \
+                PATH=$(mkpath $ROOT/usr/bin $ROOT/bin $ROOT/usr/local/bin $PATH) \
                 $@
             ;;
         *)
